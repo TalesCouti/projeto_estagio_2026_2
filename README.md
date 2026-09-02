@@ -23,6 +23,7 @@ Sistema web para agendamento de consultas medicas. O projeto tem uma pagina publ
 - Painel com registros ordenados por data e horario
 - Filtros por status e especialidade
 - Alteracao de status para `confirmado` ou `cancelado`
+- Email simulado ou real para avisar o paciente sobre o status
 - Logout
 
 ## Configuracao
@@ -45,6 +46,10 @@ Exemplo:
 
 ```env
 DATABASE_URL=postgres://postgres:sua_senha@127.0.0.1:5432/clinica_aurora
+EMAIL_ENABLED=false
+EMAIL_PROVIDER=resend
+EMAIL_API_KEY=
+EMAIL_FROM=Clinica Aurora Saude <agendamentos@exemplo.com>
 ```
 
 4. Crie o banco `clinica_aurora` no PostgreSQL.
@@ -100,3 +105,5 @@ http://localhost:3001
 O sistema considera dias uteis de segunda a sexta. Horarios disponiveis: `08:00`, `09:00`, `10:00`, `11:00`, `13:00`, `14:00`, `15:00`, `16:00` e `17:00`.
 
 O arquivo `.env` nao deve ser enviado para o repositorio, pois contem dados locais de conexao.
+
+Com `EMAIL_ENABLED=false`, o envio de email e apenas simulado no console do backend. Para envio real, configure uma chave do Resend em `EMAIL_API_KEY` e altere para `EMAIL_ENABLED=true`.
