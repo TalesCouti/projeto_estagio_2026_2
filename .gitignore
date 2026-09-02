@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+npm-debug.log*
+coverage/
+.DS_Store
+relatorio.md
+graphify-out/
