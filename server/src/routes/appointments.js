@@ -13,6 +13,7 @@ const {
   isValidType,
   normalizeDbTime
 } = require("../lib/appointments");
+const { sendAppointmentStatusEmail } = require("../lib/email");
 const requireAuth = require("../middleware/auth");
 
 const router = express.Router();
@@ -140,6 +141,7 @@ router.post("/", async (req, res, next) => {
 
     const appointment = result.rows[0];
     appointment.horario = normalizeDbTime(appointment.horario);
+    await sendAppointmentStatusEmail(appointment);
 
     return res.status(201).json({
       message: "Solicitacao enviada com sucesso.",
@@ -205,6 +207,7 @@ router.patch("/admin/:id/status", requireAuth, async (req, res, next) => {
 
     const appointment = result.rows[0];
     appointment.horario = normalizeDbTime(appointment.horario);
+    await sendAppointmentStatusEmail(appointment);
 
     return res.json({ appointment });
   } catch (error) {
