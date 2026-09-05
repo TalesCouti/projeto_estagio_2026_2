@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, ClipboardList, HeartPulse, ShieldCheck } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  HeartPulse,
+  MailCheck,
+  ShieldCheck
+} from "lucide-react";
 import { api } from "../api";
 import CalendarPicker from "../components/CalendarPicker";
 import TimeSlots from "../components/TimeSlots";
@@ -100,6 +110,11 @@ export default function App({ onNavigate }) {
     }));
   }
 
+  function chooseType(type) {
+    updateField("tipo", type);
+    document.querySelector("#agenda")?.scrollIntoView({ behavior: "smooth" });
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitState({ type: "loading", message: "Enviando solicitacao..." });
@@ -143,12 +158,9 @@ export default function App({ onNavigate }) {
 
       <section className="hero" id="top">
         <div className="hero-copy">
-          <span className="eyebrow">Agenda medica</span>
-          <h1>Cuidado proximo, consulta sem espera confusa</h1>
-          <p>
-            Escolha especialidade, veja dias livres e envie seu pedido de agendamento em poucos
-            minutos.
-          </p>
+          <span className="eyebrow">Cuidado que cabe na rotina</span>
+          <h1>Agende sua consulta</h1>
+          <p>Escolha a especialidade, confira os horarios livres e envie seu pedido.</p>
           <a className="primary-link" href="#agenda">
             <CalendarDays size={18} />
             Agendar consulta
@@ -156,6 +168,30 @@ export default function App({ onNavigate }) {
         </div>
         <div className="hero-media">
           <img src={heroImage} alt="Medico atendendo paciente em uma clinica moderna" />
+        </div>
+      </section>
+
+      <section className="care-strip" aria-label="Informacoes sobre o agendamento">
+        <div>
+          <Activity size={20} />
+          <span>
+            <strong>3 especialidades</strong>
+            Atendimento direcionado
+          </span>
+        </div>
+        <div>
+          <Clock3 size={20} />
+          <span>
+            <strong>9 horarios por dia</strong>
+            Segunda a sexta
+          </span>
+        </div>
+        <div>
+          <MailCheck size={20} />
+          <span>
+            <strong>Acompanhamento por email</strong>
+            Do pedido ate a resposta
+          </span>
         </div>
       </section>
 
@@ -170,9 +206,17 @@ export default function App({ onNavigate }) {
         <div className="service-grid">
           {types.map((type) => (
             <article className="service-card" key={type.value}>
-              <ShieldCheck size={22} />
-              <h3>{type.label}</h3>
-              <p>{type.description}</p>
+              <div className="service-icon">
+                <ShieldCheck size={22} />
+              </div>
+              <div className="service-content">
+                <h3>{type.label}</h3>
+                <p>{type.description}</p>
+              </div>
+              <button type="button" onClick={() => chooseType(type.value)}>
+                Escolher
+                <ArrowRight size={17} />
+              </button>
             </article>
           ))}
         </div>
