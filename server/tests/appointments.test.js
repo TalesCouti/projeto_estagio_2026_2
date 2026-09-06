@@ -7,6 +7,8 @@ const {
   isValidTime,
   isValidType
 } = require("../src/lib/appointments");
+const { isFutureClinicSlot } = require("../src/lib/appointments");
+const { buildRescheduleEmail } = require("../src/lib/email");
 const { buildAppointmentEmail } = require("../src/lib/email");
 
 test("mantem apenas os tipos de consulta permitidos", () => {
@@ -57,4 +59,30 @@ test("escapa o nome do paciente no html do email", () => {
   });
 
   assert.match(email.html, /&lt;Paciente&gt;/);
+});
+
+test("reagendamento considera o fuso da clinica e rejeita horarios passados", () => {
+  const now = new Date("2026-09-07T13:30:00Z"); // 10:30 em Brasília
+  assert.equal(isFutureClinicSlot("2026-09-07", "10:00", now), false);
+  assert.equal(isFutureClinicSlot("2026-09-07", "11:00", now), true);
+  assert.equal(isFutureClinicSlot("2026-09-06", "11:00", now), false);
+  assert.equal(isFutureClinicSlot("2026-09-12", "11:00", now), false);
+  assert.equal(isFutureClinicSlot("2026-09-08", "12:00", now), false);
+  assert.equal(isFutureClinicSlot("2026-13-01", "11:00", now), false);
+});
+
+test("email de reagendamento informa antes e depois sem confirmar pedido pendente", () => {
+  const appointment = {
+    nome: "<Paciente>", tipo: "cardiologia", data: "2026-09-09", horario: "14:00", status: "pendente"
+  };
+  const previous = { data: "2026-09-08", horario: "09:00" };
+  const email = buildRescheduleEmail(appointment, previous);
+  assert.equal(email.subject, "Sua consulta foi reagendada");
+  assert.match(email.text, /Agendamento anterior: 08 de setembro de 2026 às 09:00/);
+  assert.match(email.text, /Novo agendamento: 09 de setembro de 2026 às 14:00/);
+  assert.match(email.text, /continua pendente/);
+  assert.doesNotMatch(email.text, /está confirmada/);
+  assert.match(email.html, /&lt;Paciente&gt;/);
+  assert.doesNotMatch(email.html, /<Paciente>/);
+  assert.match(buildRescheduleEmail({ ...appointment, status: "confirmado" }, previous).text, /está confirmada/);
 });

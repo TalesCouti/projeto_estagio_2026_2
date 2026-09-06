@@ -66,6 +66,16 @@ function isValidTime(time) {
   return AVAILABLE_TIMES.includes(time);
 }
 
+function isFutureClinicSlot(date, time, now = new Date()) {
+  if (!isBusinessDay(date) || !isValidTime(time)) return false;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${date}T${time}` > `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
+}
+
 function normalizeDbTime(time) {
   return String(time).slice(0, 5);
 }
@@ -93,6 +103,7 @@ module.exports = {
   isValidDateString,
   isValidStatus,
   isValidTime,
+  isFutureClinicSlot,
   isValidType,
   normalizeDbTime
 };

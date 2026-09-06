@@ -46,6 +46,11 @@ export const api = {
       method: "POST"
     }),
   getAppointments: () => request("/api/appointments/admin"),
+  rescheduleAppointment: (id, payload) =>
+    request(`/api/appointments/admin/${id}/reschedule`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   updateStatus: (id, status) =>
     request(`/api/appointments/admin/${id}/status`, {
       method: "PATCH",
