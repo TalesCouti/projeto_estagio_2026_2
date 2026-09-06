@@ -66,7 +66,7 @@ export default function CalendarPicker({
         ))}
         {calendar.map((day) => {
           const dateNumber = Number(day.date.slice(-2));
-          const disabled = !day.isBusinessDay || day.isFullyBooked;
+          const disabled = loading || !day.isBusinessDay || day.isFullyBooked;
           const selected = selectedDate === day.date;
 
           return (
@@ -75,10 +75,12 @@ export default function CalendarPicker({
               disabled={disabled}
               key={day.date}
               type="button"
+              aria-pressed={selected}
+              aria-label={`${day.date.split("-").reverse().join("/")}: ${day.holidayName || (disabled ? "indisponível" : `${day.availableCount} horários disponíveis`)}`}
               onClick={() => onSelectDate(day.date)}
             >
               <span>{dateNumber}</span>
-              <small>{disabled ? "Indisponivel" : `${day.availableCount} horarios`}</small>
+              <small>{day.holidayName || (disabled ? "Indisponivel" : `${day.availableCount} horarios`)}</small>
             </button>
           );
         })}

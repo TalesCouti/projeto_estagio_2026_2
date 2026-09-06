@@ -10,7 +10,10 @@ const config = {
   emailEnabled: process.env.EMAIL_ENABLED === "true",
   emailProvider: process.env.EMAIL_PROVIDER || "resend",
   emailApiKey: process.env.EMAIL_API_KEY,
-  emailFrom: process.env.EMAIL_FROM || "Clinica Aurora Saude <agendamentos@exemplo.com>"
+  emailFrom: process.env.EMAIL_FROM || "Clinica Aurora Saude <agendamentos@exemplo.com>",
+  holidaysEnabled: process.env.HOLIDAYS_ENABLED !== "false",
+  holidaysApiUrl: process.env.HOLIDAYS_API_URL || "https://brasilapi.com.br/api/feriados/v1",
+  holidaysApiTimeoutMs: Number(process.env.HOLIDAYS_API_TIMEOUT_MS || 5000)
 };
 
 module.exports = config;

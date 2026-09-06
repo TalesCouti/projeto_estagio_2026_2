@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const pool = require("../src/db/pool");
 const config = require("../src/lib/config");
 const emails = require("../src/lib/email");
+const holidays = require("../src/lib/holidays");
 
 // These route tests use a controlled database adapter and never send real email.
 const deliveries = [];
@@ -12,6 +13,8 @@ emails.sendAppointmentEmail = async (appointment, email) => {
   deliveries.push({ appointment, email });
   return { sent: false, simulated: true };
 };
+mock.method(holidays, "getHolidayDates", async () => new Set());
+mock.method(holidays, "getHolidays", async () => []);
 const routes = require("../src/routes/appointments");
 const id = "11111111-1111-4111-8111-111111111111";
 const previous = { data: "2099-09-07", horario: "09:00", status: "confirmado" };

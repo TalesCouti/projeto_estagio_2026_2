@@ -13,6 +13,7 @@ import {
 import { api } from "../api";
 import CalendarPicker from "../components/CalendarPicker";
 import TimeSlots from "../components/TimeSlots";
+import Footer from "../components/Footer";
 import heroImage from "../assets/clinic-hero.png";
 
 const fallbackTypes = [
@@ -65,6 +66,9 @@ export default function App({ onNavigate }) {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [submitState, setSubmitState] = useState({ type: "idle", message: "" });
+  const [calendarError, setCalendarError] = useState("");
+  const [slotsError, setSlotsError] = useState("");
+  const [availabilityVersion, setAvailabilityVersion] = useState(0);
 
   const selectedType = useMemo(
     () => types.find((type) => type.value === form.tipo) || types[0],
@@ -76,17 +80,24 @@ export default function App({ onNavigate }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
     setCalendarLoading(true);
+    setCalendar([]);
+    setCalendarError("");
     api
       .getCalendar(form.tipo, month)
-      .then((data) => setCalendar(data.calendar))
-      .catch(() => setCalendar([]))
-      .finally(() => setCalendarLoading(false));
-  }, [form.tipo, month]);
+      .then((data) => { if (active) setCalendar(data.calendar); })
+      .catch(() => { if (active) setCalendarError("Não foi possível atualizar o calendário. Tente novamente."); })
+      .finally(() => { if (active) setCalendarLoading(false); });
+    return () => { active = false; };
+  }, [form.tipo, month, availabilityVersion]);
 
   useEffect(() => {
+    let active = true;
+    setSlotsError("");
+    setAvailableSlots([]);
     if (!form.data) {
-      setAvailableSlots([]);
+      setSlotsLoading(false);
       return;
     }
 
@@ -94,12 +105,14 @@ export default function App({ onNavigate }) {
     setSlotsLoading(true);
     api
       .getAvailability(form.tipo, form.data)
-      .then((data) => setAvailableSlots(data.availableSlots))
-      .catch(() => setAvailableSlots([]))
-      .finally(() => setSlotsLoading(false));
-  }, [form.tipo, form.data]);
+      .then((data) => { if (active) setAvailableSlots(data.availableSlots); })
+      .catch(() => { if (active) setSlotsError("Não foi possível carregar os horários. Tente novamente."); })
+      .finally(() => { if (active) setSlotsLoading(false); });
+    return () => { active = false; };
+  }, [form.tipo, form.data, availabilityVersion]);
 
   function updateField(field, value) {
+    if (submitState.type === "loading") return;
     setSubmitState({ type: "idle", message: "" });
     setForm((current) => ({
       ...current,
@@ -132,15 +145,19 @@ export default function App({ onNavigate }) {
         data: "",
         horario: ""
       }));
-      const data = await api.getCalendar(form.tipo, month);
-      setCalendar(data.calendar);
       setAvailableSlots([]);
+      setAvailabilityVersion((value) => value + 1);
     } catch (error) {
       setSubmitState({ type: "error", message: error.message });
+      if (error.status === 409) {
+        setForm((current) => ({ ...current, horario: "" }));
+        setAvailabilityVersion((value) => value + 1);
+      }
     }
   }
 
   return (
+    <>
     <main className="site-shell">
       <header className="public-nav">
         <a className="brand" href="#top">
@@ -284,7 +301,7 @@ export default function App({ onNavigate }) {
             </div>
 
             {submitState.message ? (
-              <div className={`feedback ${submitState.type}`}>
+              <div className={`feedback ${submitState.type}`} role={submitState.type === "error" ? "alert" : "status"}>
                 {submitState.type === "success" ? <CheckCircle2 size={18} /> : null}
                 <span>{submitState.message}</span>
               </div>
@@ -292,7 +309,7 @@ export default function App({ onNavigate }) {
 
             <button
               className="submit-button"
-              disabled={submitState.type === "loading" || !form.data || !form.horario}
+              disabled={submitState.type === "loading" || calendarLoading || slotsLoading || !form.data || !form.horario}
               type="submit"
             >
               Enviar pedido
@@ -300,24 +317,33 @@ export default function App({ onNavigate }) {
           </div>
 
           <div className="calendar-stack">
+            {calendarError || slotsError ? (
+              <div className="feedback error" role="alert">
+                <span>{calendarError || slotsError}</span>
+                <button className="secondary-button" type="button"
+                  onClick={() => setAvailabilityVersion((value) => value + 1)}>Tentar novamente</button>
+              </div>
+            ) : null}
             <CalendarPicker
               calendar={calendar}
               loading={calendarLoading}
               month={month}
-              onMonthChange={setMonth}
+              onMonthChange={(value) => { if (submitState.type !== "loading") setMonth(value); }}
               onSelectDate={(date) => updateField("data", date)}
               selectedDate={form.data}
             />
-            <TimeSlots
+            {!slotsError ? <TimeSlots
               loading={slotsLoading}
               onSelectTime={(time) => updateField("horario", time)}
               selectedDate={form.data}
               selectedTime={form.horario}
               slots={availableSlots}
-            />
+            /> : null}
           </div>
         </form>
       </section>
     </main>
+    <Footer />
+    </>
   );
 }

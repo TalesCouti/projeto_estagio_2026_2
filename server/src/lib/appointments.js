@@ -66,6 +66,10 @@ function isValidTime(time) {
   return AVAILABLE_TIMES.includes(time);
 }
 
+function isBusinessDayWithHolidays(date, holidayDates = new Set()) {
+  return isBusinessDay(date) && !holidayDates.has(date);
+}
+
 function isFutureClinicSlot(date, time, now = new Date()) {
   if (!isBusinessDay(date) || !isValidTime(time)) return false;
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -99,6 +103,7 @@ module.exports = {
   AVAILABLE_TIMES,
   getDaysInMonth,
   isBusinessDay,
+  isBusinessDayWithHolidays,
   isFutureOrToday,
   isValidDateString,
   isValidStatus,

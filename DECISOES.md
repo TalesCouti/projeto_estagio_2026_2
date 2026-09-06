@@ -12,7 +12,7 @@ O ganho dessa stack e a simplicidade para desenvolver uma aplicacao full stack p
 
 ## Banco e regras
 
-O PostgreSQL foi escolhido por lidar bem com dados estruturados e restricoes. Usei ENUM para `tipo` e `status`, e um indice unico parcial para impedir dois agendamentos ativos no mesmo tipo, data e horario. Agendamentos cancelados liberam o horario novamente.
+O PostgreSQL foi escolhido por lidar bem com dados estruturados e restricoes. Usei ENUM para `tipo` e `status`, um índice único parcial para impedir dois agendamentos ativos no mesmo tipo, data e horario e uma tabela `holidays` para manter feriados nacionais importados da BrasilAPI e feriados personalizados cadastrados pelo administrador. Agendamentos cancelados liberam o horario novamente. A consulta do calendário usa os feriados armazenados, evitando chamada externa repetida.
 
 Os horarios ficaram fixos no codigo para manter o escopo controlado. Em uma versao maior, eu moveria isso para tabelas de profissionais, especialidades e disponibilidade.
 
@@ -28,16 +28,22 @@ Como o repositorio e publico, deixei o envio real dependente de variaveis de amb
 
 ## O que foi alem do minimo
 
-Inclui calendario com disponibilidade por dia, bloqueio de conflito no banco, filtros no painel, alteracao de status, contadores no painel, validacao no backend, tratamento para banco indisponivel e notificacao de email simulada ou real.
+Inclui calendario com disponibilidade por dia, bloqueio de conflito no banco, filtros no painel, alteracao de status, contadores no painel, validacao no backend, tratamento para banco indisponivel, notificacao de email simulada ou real, reagendamento pelo painel e cadastro de feriados personalizados.
+
+O reagendamento altera a reserva em uma transação: se a nova vaga estiver ocupada, o horário anterior é preservado. O status permanece igual para não confirmar automaticamente um pedido pendente. A mensagem ao paciente informa o agendamento anterior e o novo. Uma falha no email não desfaz uma alteração já salva.
 
 ## O que ficou de fora
 
-Nao implementei telefone do paciente, reagendamento, paginacao e agenda por medico. Essas partes deixariam o sistema mais completo, mas aumentariam o escopo inicial.
+Nao implementei telefone do paciente, paginacao e agenda por medico. Essas partes deixariam o sistema mais completo, mas aumentariam o escopo inicial. A integração cobre feriados nacionais, enquanto datas estaduais, municipais e pontos facultativos podem ser incluídos pelo administrador no painel. O logout remove o token do navegador, mas não o revoga no servidor; ele expira após oito horas. Uma implantação pública exigiria rever esse controle de sessão.
 
 ## Uso de IA
 
-Usei IA para acelerar a montagem inicial da estrutura, revisar riscos e lembrar pontos que poderiam faltar, como bloqueio de conflito e protecao da rota administrativa. Depois validei o projeto rodando testes, build, audit e chamadas reais na API.
+Deleguei à IA apoio na estrutura inicial, revisão de requisitos, implementação de melhorias e testes. Na etapa final, a IA também implementou o reagendamento e as correções; minha participação foi escolher essas prioridades, solicitar a revisão e orientar ajustes de interface, como a indicação de voltar no login. O uso de IA incluiu execução de testes e verificação no navegador, não apenas geração de código.
 
-Uma sugestao que precisei ajustar foi o uso inicial de `react-router-dom`. O audit apontou alerta de seguranca, entao removi a dependencia e deixei um roteamento simples porque o projeto so tem tres rotas.
+Um problema encontrado no código produzido com auxílio de IA foi a mensagem de sucesso do agendamento depender da atualização seguinte do calendário. Se essa consulta falhasse, um pedido já salvo aparecia como erro. A correção separou a persistência da atualização da tela. O teste no navegador simulou a falha do calendário e confirmou que a mensagem de sucesso permanecia visível.
 
-Tambem optei por deixar o relatorio detalhado fora do Git, em `relatorio.md`, para manter o repositorio mais limpo e entregar no versionamento apenas os arquivos necessarios para rodar e explicar o projeto.
+Uma decisão contrária à sugestão inicial da IA foi remover `react-router-dom`. Conforme registrado na primeira documentação do projeto, a auditoria apontou um alerta e a opção foi manter um roteamento simples, já que só existem três páginas. A revisão final também corrigiu a ordem de registro dos eventos desse roteamento: antes, acessar `/admin` sem login podia mudar a URL sem renderizar a tela de entrada.
+
+## Validação
+
+Os testes cobrem regras, conteúdo dos emails e respostas da API. O teste opcional de integração usa PostgreSQL real em um schema temporário e verifica reservas simultâneas, autenticação, listagem, confirmação, cancelamento, reagendamento e liberação de vagas. A interface compilada foi conferida no navegador em tamanho de celular, incluindo o redirecionamento para login e o feedback após envio. Nenhum email real é enviado durante esses testes.
