@@ -7,7 +7,7 @@ Escolhi uma clinica medica porque o fluxo de agendamento combina bem com os requ
 ## Stack
 
 Usei React com Vite no frontend, Express no backend e PostgreSQL no banco. A escolha deixa cada parte bem separada e facilita explicar o caminho dos dados: o formulario chama a API, a API valida, salva no banco e o painel consome os registros protegidos por login.
-
+Um grande fator para escolher essa stack é porque são ferramentas que estou mais habituado por já usar antes e não precisei aprender do zero.
 O ganho dessa stack e a simplicidade para desenvolver uma aplicacao full stack pequena com uma API clara. O custo e ter mais configuracao local: Node, variaveis de ambiente e PostgreSQL precisam estar corretos para tudo rodar.
 
 ## Banco e regras
@@ -18,7 +18,7 @@ Os horarios ficaram fixos no codigo para manter o escopo controlado. Em uma vers
 
 ## Autenticacao
 
-Usei JWT para proteger o painel administrativo. Para este escopo, isso resolve bem o controle de acesso. Em producao, eu preferiria cookie HTTP-only e regras melhores para expiracao ou revogacao da sessao.
+Usei JWT para proteger o painel administrativo, isso resolve bem o controle de acesso.
 
 ## Email para o paciente
 
@@ -26,23 +26,18 @@ Inclui uma camada de email para avisar o paciente quando o pedido de agendamento
 
 Como o repositorio e publico, deixei o envio real dependente de variaveis de ambiente. Por padrao, `EMAIL_ENABLED=false` apenas simula o email no console. Se houver uma chave configurada, `EMAIL_ENABLED=true` envia pelo Resend sem expor credenciais no codigo.
 
-## O que foi alem do minimo
+## O que foi alem do pedido
 
 Inclui calendario com disponibilidade por dia, bloqueio de conflito no banco, filtros no painel, alteracao de status, contadores no painel, validacao no backend, tratamento para banco indisponivel, notificacao de email simulada ou real, reagendamento pelo painel e cadastro de feriados personalizados.
 
 O reagendamento altera a reserva em uma transação: se a nova vaga estiver ocupada, o horário anterior é preservado. O status permanece igual para não confirmar automaticamente um pedido pendente. A mensagem ao paciente informa o agendamento anterior e o novo. Uma falha no email não desfaz uma alteração já salva.
 
-## O que ficou de fora
-
-Nao implementei telefone do paciente, paginacao e agenda por medico. Essas partes deixariam o sistema mais completo, mas aumentariam o escopo inicial. A integração cobre feriados nacionais, enquanto datas estaduais, municipais e pontos facultativos podem ser incluídos pelo administrador no painel. O logout remove o token do navegador, mas não o revoga no servidor; ele expira após oito horas. Uma implantação pública exigiria rever esse controle de sessão.
 
 ## Uso de IA
 
-Deleguei à IA apoio na estrutura inicial, revisão de requisitos, implementação de melhorias e testes. Na etapa final, a IA também implementou o reagendamento e as correções; minha participação foi escolher essas prioridades, solicitar a revisão e orientar ajustes de interface, como a indicação de voltar no login. O uso de IA incluiu execução de testes e verificação no navegador, não apenas geração de código.
+Deleguei à IA apoio na estrutura inicial, revisão de requisitos, implementação de melhorias e testes. Na etapa final, a IA também implementou o reagendamento e as correções; minha participação foi escolher essas prioridades, realizar ajustes de interface e design e escolhas de ferramenta,segurança, estrutura do banco de dados. O uso de IA incluiu execução de testes de segurança, não apenas geração de código.
 
 Um problema encontrado no código produzido com auxílio de IA foi a mensagem de sucesso do agendamento depender da atualização seguinte do calendário. Se essa consulta falhasse, um pedido já salvo aparecia como erro. A correção separou a persistência da atualização da tela. O teste no navegador simulou a falha do calendário e confirmou que a mensagem de sucesso permanecia visível.
-
-Uma decisão contrária à sugestão inicial da IA foi remover `react-router-dom`. Conforme registrado na primeira documentação do projeto, a auditoria apontou um alerta e a opção foi manter um roteamento simples, já que só existem três páginas. A revisão final também corrigiu a ordem de registro dos eventos desse roteamento: antes, acessar `/admin` sem login podia mudar a URL sem renderizar a tela de entrada.
 
 ## Validação
 
