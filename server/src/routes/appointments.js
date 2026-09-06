@@ -7,13 +7,14 @@ const {
   getDaysInMonth,
   isBusinessDay,
   isFutureOrToday,
+  isFutureClinicSlot,
   isValidDateString,
   isValidStatus,
   isValidTime,
   isValidType,
   normalizeDbTime
 } = require("../lib/appointments");
-const { sendAppointmentStatusEmail } = require("../lib/email");
+const { sendAppointmentStatusEmail, buildRescheduleEmail, sendAppointmentEmail } = require("../lib/email");
 const requireAuth = require("../middleware/auth");
 
 const router = express.Router();
@@ -178,6 +179,84 @@ router.get("/admin", requireAuth, async (req, res, next) => {
   } catch (error) {
     return next(error);
   }
+});
+
+router.patch("/admin/:id/reschedule", requireAuth, async (req, res, next) => {
+  const schema = z.object({
+    data: z.string().refine(isValidDateString),
+    horario: z.string().refine(isValidTime),
+    previous: z.object({
+      data: z.string().refine(isValidDateString),
+      horario: z.string().refine(isValidTime),
+      status: z.string().refine(isValidStatus)
+    })
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!z.string().uuid().safeParse(req.params.id).success || !parsed.success) {
+    return res.status(400).json({ message: "Revise os dados do reagendamento." });
+  }
+  const { data, horario, previous: expected } = parsed.data;
+  if (!isFutureClinicSlot(data, horario)) {
+    return res.status(400).json({ message: "Escolha um horário futuro em um dia útil (horário de Brasília)." });
+  }
+
+  let client;
+  let transactionOpen = false;
+  let previous;
+  let appointment;
+  try {
+    client = await pool.connect();
+    await client.query("BEGIN");
+    transactionOpen = true;
+    const result = await client.query(
+      "SELECT id, data::text, horario::text, status FROM appointments WHERE id = $1 FOR UPDATE",
+      [req.params.id]
+    );
+    previous = result.rows[0];
+    let rejection;
+    if (!previous) {
+      rejection = [404, "Agendamento não encontrado."];
+    } else {
+      previous.horario = normalizeDbTime(previous.horario);
+      if (previous.status === "cancelado") {
+        rejection = [409, "Agendamentos cancelados não podem ser reagendados."];
+      } else if (previous.data !== expected.data || previous.horario !== expected.horario || previous.status !== expected.status) {
+        rejection = [409, "Este agendamento foi alterado por outra pessoa. Feche o formulário e atualize o painel."];
+      } else if (previous.data === data && previous.horario === horario) {
+        rejection = [400, "Escolha uma data ou um horário diferente do atual."];
+      }
+    }
+    if (rejection) {
+      await client.query("ROLLBACK");
+      transactionOpen = false;
+      return res.status(rejection[0]).json({ message: rejection[1] });
+    }
+    // A alteração é atômica: um conflito mantém a reserva original intacta.
+    const updated = await client.query(
+      `UPDATE appointments SET data = $1, horario = $2 WHERE id = $3
+       RETURNING id, nome, email, tipo, data::text, horario::text, status, criado_em`,
+      [data, horario, req.params.id]
+    );
+    appointment = updated.rows[0];
+    appointment.horario = normalizeDbTime(appointment.horario);
+    await client.query("COMMIT");
+    transactionOpen = false;
+  } catch (error) {
+    if (transactionOpen) await client.query("ROLLBACK").catch(() => {});
+    if (error.code === "23505") {
+      return res.status(409).json({ message: "Esse horário acabou de ser reservado. Escolha outro. O agendamento anterior foi mantido." });
+    }
+    return next(error);
+  } finally {
+    if (client) client.release();
+  }
+
+  const email = buildRescheduleEmail(appointment, previous);
+  const delivery = await sendAppointmentEmail(appointment, email);
+  return res.json({
+    message: "Agendamento alterado com sucesso.", appointment,
+    notification: { to: appointment.email, subject: email.subject, text: email.text, ...delivery }
+  });
 });
 
 router.patch("/admin/:id/status", requireAuth, async (req, res, next) => {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarCheck, LogOut, RefreshCw } from "lucide-react";
 import { api } from "../api";
+import RescheduleForm from "../components/RescheduleForm";
 
 const statusOptions = ["todos", "pendente", "confirmado", "cancelado"];
 const typeLabels = {
@@ -34,6 +35,17 @@ export default function Dashboard({ onNavigate }) {
   const [typeFilter, setTypeFilter] = useState("todos");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [rescheduling, setRescheduling] = useState(null);
+  const [notification, setNotification] = useState(null);
+
+  function handleRescheduled(result) {
+    setAppointments((current) => current
+      .map((item) => item.id === result.appointment.id ? result.appointment : item)
+      .sort((a, b) => `${a.data} ${a.horario}`.localeCompare(`${b.data} ${b.horario}`)));
+    setNotification(result.notification);
+    setRescheduling(null);
+    setMessage("");
+  }
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter((item) => {
@@ -98,11 +110,11 @@ export default function Dashboard({ onNavigate }) {
           <p>Registros ordenados por data e horario, com status visivel para acompanhamento.</p>
         </div>
         <div className="dashboard-actions">
-          <button className="secondary-button" onClick={loadAppointments} type="button">
+          <button className="secondary-button" disabled={Boolean(rescheduling)} onClick={loadAppointments} type="button">
             <RefreshCw size={18} />
             Atualizar
           </button>
-          <button className="secondary-button" onClick={handleLogout} type="button">
+          <button className="secondary-button" disabled={Boolean(rescheduling)} onClick={handleLogout} type="button">
             <LogOut size={18} />
             Sair
           </button>
@@ -155,6 +167,24 @@ export default function Dashboard({ onNavigate }) {
 
       {message ? <div className="feedback error">{message}</div> : null}
 
+      {rescheduling ? <RescheduleForm key={rescheduling.id} appointment={rescheduling}
+        onSaved={handleRescheduled} onClose={() => setRescheduling(null)} /> : null}
+
+      {notification ? (
+        <section className="reschedule-panel" aria-label="Mensagem de reagendamento">
+          <div className="feedback success" role="status">Reagendamento salvo com sucesso.</div>
+          <p role="status">{notification.sent
+            ? "E-mail aceito pelo serviço de envio."
+            : notification.simulated
+              ? "Envio simulado: a mensagem abaixo foi gerada, mas não foi enviada por e-mail."
+              : "O reagendamento foi salvo, mas o e-mail não foi enviado. Use a mensagem abaixo para avisar o paciente."}</p>
+          <p><strong>Para:</strong> {notification.to}</p>
+          <p><strong>Assunto:</strong> {notification.subject}</p>
+          <pre className="email-preview">{notification.text}</pre>
+          <button className="secondary-button" type="button" onClick={() => setNotification(null)}>Fechar mensagem</button>
+        </section>
+      ) : null}
+
       <section className="table-wrap" aria-busy={loading}>
         {loading ? (
           <div className="empty-state">Carregando registros...</div>
@@ -187,18 +217,22 @@ export default function Dashboard({ onNavigate }) {
                   <td>
                     <div className="row-actions">
                       <button
-                        disabled={item.status === "confirmado"}
+                        disabled={Boolean(rescheduling) || item.status === "confirmado"}
                         onClick={() => updateStatus(item.id, "confirmado")}
                         type="button"
                       >
                         Confirmar
                       </button>
                       <button
-                        disabled={item.status === "cancelado"}
+                        disabled={Boolean(rescheduling) || item.status === "cancelado"}
                         onClick={() => updateStatus(item.id, "cancelado")}
                         type="button"
                       >
                         Cancelar
+                      </button>
+                      <button type="button" disabled={Boolean(rescheduling) || item.status === "cancelado"}
+                        onClick={() => { setRescheduling(item); setNotification(null); setMessage(""); }}>
+                        Reagendar
                       </button>
                     </div>
                   </td>

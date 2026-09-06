@@ -84,8 +84,29 @@ function buildAppointmentEmail(appointment) {
   };
 }
 
-async function sendAppointmentStatusEmail(appointment) {
-  const email = buildAppointmentEmail(appointment);
+function buildRescheduleEmail(appointment, previous) {
+  const subject = "Sua consulta foi reagendada";
+  const lines = [
+    `Olá, ${appointment.nome}.`, "",
+    "Sua consulta na Clínica Aurora Saúde foi reagendada pela nossa equipe.", "",
+    `Especialidade: ${typeLabels[appointment.tipo] || appointment.tipo}`,
+    `Agendamento anterior: ${formatDate(previous.data)} às ${previous.horario}.`,
+    `Novo agendamento: ${formatDate(appointment.data)} às ${appointment.horario}.`,
+    `Status: ${appointment.status}.`, "",
+    appointment.status === "pendente"
+      ? "Seu pedido continua pendente. Aguarde a confirmação da equipe."
+      : "Sua consulta está confirmada para o novo horário.",
+    "Caso não possa comparecer, entre em contato com a clínica.", "",
+    "Clínica Aurora Saúde"
+  ];
+  return {
+    subject,
+    text: lines.join("\n"),
+    html: `<div style="font-family: Arial, sans-serif; line-height: 1.6;"><h2>${subject}</h2>${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}</div>`
+  };
+}
+
+async function sendAppointmentEmail(appointment, email) {
 
   if (!config.emailEnabled) {
     console.log(`[email simulado] Para: ${appointment.email} | Assunto: ${email.subject}`);
@@ -106,6 +127,7 @@ async function sendAppointmentStatusEmail(appointment) {
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
+      signal: AbortSignal.timeout(10000),
       headers: {
         Authorization: `Bearer ${config.emailApiKey}`,
         "Content-Type": "application/json"
@@ -133,5 +155,7 @@ async function sendAppointmentStatusEmail(appointment) {
 
 module.exports = {
   buildAppointmentEmail,
-  sendAppointmentStatusEmail
+  buildRescheduleEmail,
+  sendAppointmentEmail,
+  sendAppointmentStatusEmail: (appointment) => sendAppointmentEmail(appointment, buildAppointmentEmail(appointment))
 };

@@ -752,6 +752,28 @@ select:focus {
   min-width: 210px;
 }
 
+.reschedule-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  overflow-wrap: anywhere;
+}
+
+.reschedule-panel h2 { margin-top: 0; }
+.reschedule-fields, .reschedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.reschedule-fields label { flex: 1 1 200px; min-width: 0; }
+.reschedule-fields input, .reschedule-fields select { width: 100%; min-width: 0; }
+.reschedule-actions { margin-top: 20px; }
+.reschedule-actions .submit-button { margin-top: 0; }
+.reschedule-hint { color: var(--muted); }
+.email-preview { white-space: pre-wrap; font: inherit; line-height: 1.6; }
+
 .table-wrap {
   overflow-x: auto;
 }

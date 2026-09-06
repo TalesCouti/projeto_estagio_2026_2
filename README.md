@@ -23,6 +23,8 @@ Sistema web para agendamento de consultas medicas. O projeto tem uma pagina publ
 - Painel com registros ordenados por data e horario
 - Filtros por status e especialidade
 - Alteracao de status para `confirmado` ou `cancelado`
+- Reagendamento pelo painel com nova data e horário, mantendo o status atual
+- Mensagem de reagendamento com data/horário anterior e novo, disponível no painel e no envio de email
 - Email simulado ou real para avisar o paciente sobre o status
 - Logout
 
@@ -98,9 +100,14 @@ http://localhost:3001
 - `POST /api/auth/login`
 - `GET /api/appointments/admin`
 - `PATCH /api/appointments/admin/:id/status`
+- `PATCH /api/appointments/admin/:id/reschedule`
 - `POST /api/auth/logout`
 
 ## Observacoes
+
+A resposta mostra a mensagem destinada ao paciente e a situação do envio. Com `EMAIL_ENABLED=false`, o email é apenas simulado. Com envio real configurado, a mensagem é encaminhada pelo provedor existente. Uma falha de envio não desfaz o reagendamento.
+
+A rota de reagendamento recebe `data`, `horario` e `previous: { data, horario, status }` com os valores vistos no painel. O status é preservado: reagendar um pedido pendente não confirma a consulta.
 
 O sistema considera dias uteis de segunda a sexta. Horarios disponiveis: `08:00`, `09:00`, `10:00`, `11:00`, `13:00`, `14:00`, `15:00`, `16:00` e `17:00`.
 
