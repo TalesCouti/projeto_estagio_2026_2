@@ -5,7 +5,7 @@ const {
   APPOINTMENT_TYPES,
   AVAILABLE_TIMES,
   getDaysInMonth,
-  isBusinessDay,
+  isBusinessDayWithHolidays,
   isFutureOrToday,
   isFutureClinicSlot,
   isValidDateString,
@@ -14,6 +14,7 @@ const {
   isValidType,
   normalizeDbTime
 } = require("../lib/appointments");
+const { getHolidayDates, getHolidays } = require("../lib/holidays");
 const { sendAppointmentStatusEmail, buildRescheduleEmail, sendAppointmentEmail } = require("../lib/email");
 const requireAuth = require("../middleware/auth");
 
@@ -39,6 +40,9 @@ router.get("/availability", async (req, res, next) => {
       return res.status(400).json({ message: "Especialidade ou data invalida." });
     }
 
+    const holidays = await getHolidays(String(date).slice(0, 4));
+    const holidayDates = new Set(holidays.map((holiday) => holiday.date));
+    const holiday = holidays.find((item) => item.date === date);
     const result = await pool.query(
       `
         SELECT horario
@@ -52,7 +56,7 @@ router.get("/availability", async (req, res, next) => {
 
     // Pendentes tambem bloqueiam o horario ate a equipe confirmar ou cancelar.
     const bookedSlots = result.rows.map((row) => normalizeDbTime(row.horario));
-    const businessDay = isBusinessDay(date) && isFutureOrToday(date);
+    const businessDay = isBusinessDayWithHolidays(date, holidayDates) && isFutureOrToday(date);
     const availableSlots = businessDay
       ? AVAILABLE_TIMES.filter((time) => !bookedSlots.includes(time))
       : [];
@@ -62,7 +66,8 @@ router.get("/availability", async (req, res, next) => {
       date,
       bookedSlots,
       availableSlots,
-      isBusinessDay: businessDay
+      isBusinessDay: businessDay,
+      holidayName: holiday?.name || null
     });
   } catch (error) {
     return next(error);
@@ -83,6 +88,9 @@ router.get("/calendar", async (req, res, next) => {
       return res.status(400).json({ message: "Mes invalido." });
     }
 
+    const holidays = await getHolidays(String(days[0]).slice(0, 4));
+    const holidayDates = new Set(holidays.map((holiday) => holiday.date));
+    const holidaysByDate = new Map(holidays.map((holiday) => [holiday.date, holiday.name]));
     const result = await pool.query(
       `
         SELECT data::text AS data, COUNT(*)::int AS total
@@ -99,7 +107,7 @@ router.get("/calendar", async (req, res, next) => {
     const totalsByDate = new Map(result.rows.map((row) => [row.data, row.total]));
     const calendar = days.map((date) => {
       const bookedCount = totalsByDate.get(date) || 0;
-      const enabled = isBusinessDay(date) && isFutureOrToday(date);
+      const enabled = isBusinessDayWithHolidays(date, holidayDates) && isFutureOrToday(date);
       const availableCount = enabled ? Math.max(AVAILABLE_TIMES.length - bookedCount, 0) : 0;
 
       return {
@@ -107,7 +115,8 @@ router.get("/calendar", async (req, res, next) => {
         bookedCount,
         availableCount,
         isBusinessDay: enabled,
-        isFullyBooked: enabled && availableCount === 0
+        isFullyBooked: enabled && availableCount === 0,
+        holidayName: holidaysByDate.get(date) || null
       };
     });
 
@@ -127,7 +136,8 @@ router.post("/", async (req, res, next) => {
 
     const { nome, email, tipo, data, horario } = parsed.data;
 
-    if (!isBusinessDay(data) || !isFutureOrToday(data)) {
+    const holidayDates = await getHolidayDates(data.slice(0, 4));
+    if (!isBusinessDayWithHolidays(data, holidayDates) || !isFutureOrToday(data)) {
       return res.status(400).json({ message: "Escolha um dia util futuro." });
     }
 
@@ -196,7 +206,8 @@ router.patch("/admin/:id/reschedule", requireAuth, async (req, res, next) => {
     return res.status(400).json({ message: "Revise os dados do reagendamento." });
   }
   const { data, horario, previous: expected } = parsed.data;
-  if (!isFutureClinicSlot(data, horario)) {
+  const holidayDates = await getHolidayDates(data.slice(0, 4));
+  if (!isBusinessDayWithHolidays(data, holidayDates) || !isFutureClinicSlot(data, horario)) {
     return res.status(400).json({ message: "Escolha um horário futuro em um dia útil (horário de Brasília)." });
   }
 

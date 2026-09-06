@@ -7,6 +7,8 @@ const {
   isValidTime,
   isValidType
 } = require("../src/lib/appointments");
+const { isBusinessDayWithHolidays } = require("../src/lib/appointments");
+const { normalizeHoliday, validateYear } = require("../src/lib/holidays");
 const { isFutureClinicSlot } = require("../src/lib/appointments");
 const { buildRescheduleEmail } = require("../src/lib/email");
 const { buildAppointmentEmail } = require("../src/lib/email");
@@ -59,6 +61,18 @@ test("escapa o nome do paciente no html do email", () => {
   });
 
   assert.match(email.html, /&lt;Paciente&gt;/);
+});
+
+test("desativa feriados nacionais e valida o formato importado", () => {
+  const holidays = new Set(["2026-09-07"]);
+  assert.equal(isBusinessDayWithHolidays("2026-09-07", holidays), false);
+  assert.equal(isBusinessDayWithHolidays("2026-09-08", holidays), true);
+  assert.deepEqual(normalizeHoliday({ date: "2026-09-07", name: "Independência do Brasil" }), {
+    date: "2026-09-07", name: "Independência do Brasil", type: "NACIONAL"
+  });
+  assert.equal(normalizeHoliday({ date: "07/09/2026", name: "Inválido" }), null);
+  assert.equal(validateYear("2026"), true);
+  assert.equal(validateYear("1999"), false);
 });
 
 test("reagendamento considera o fuso da clinica e rejeita horarios passados", () => {

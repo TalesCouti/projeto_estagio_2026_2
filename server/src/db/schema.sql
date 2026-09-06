@@ -32,6 +32,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS appointments_unique_active_slot
 CREATE INDEX IF NOT EXISTS appointments_date_status_idx
   ON appointments (data, horario, status);
 
+CREATE TABLE IF NOT EXISTS holidays (
+  data date PRIMARY KEY,
+  nome varchar(180) NOT NULL,
+  tipo varchar(40) NOT NULL DEFAULT 'NACIONAL',
+  fonte text NOT NULL,
+  atualizado_em timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS holidays_date_idx ON holidays (data);
+
 CREATE TABLE IF NOT EXISTS admins (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email varchar(180) NOT NULL UNIQUE,

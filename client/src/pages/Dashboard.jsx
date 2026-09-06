@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarCheck, LogOut, RefreshCw } from "lucide-react";
+import { CalendarCheck, LogOut, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { api } from "../api";
 import RescheduleForm from "../components/RescheduleForm";
 
@@ -37,6 +37,10 @@ export default function Dashboard({ onNavigate }) {
   const [message, setMessage] = useState("");
   const [rescheduling, setRescheduling] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [holidays, setHolidays] = useState([]);
+  const [holidayForm, setHolidayForm] = useState({ data: "", nome: "" });
+  const [holidayLoading, setHolidayLoading] = useState(false);
+  const [holidayMessage, setHolidayMessage] = useState("");
 
   function handleRescheduled(result) {
     setAppointments((current) => current
@@ -64,12 +68,54 @@ export default function Dashboard({ onNavigate }) {
       setAppointments(data.appointments);
     } catch (error) {
       setMessage(error.message);
-      if (error.message.toLowerCase().includes("sessao")) {
+      if (error.status === 401) {
         localStorage.removeItem("aurora_token");
         onNavigate("/login", true);
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadHolidays() {
+    try {
+      const data = await api.getHolidays();
+      setHolidays(data.holidays);
+    } catch (error) {
+      if (error.status === 401) {
+        localStorage.removeItem("aurora_token");
+        onNavigate("/login", true);
+      } else {
+        setHolidayMessage(error.message);
+      }
+    }
+  }
+
+  async function createHoliday(event) {
+    event.preventDefault();
+    setHolidayLoading(true);
+    setHolidayMessage("");
+    try {
+      const data = await api.createHoliday(holidayForm);
+      setHolidays((current) => [...current, data.holiday].sort((a, b) => a.date.localeCompare(b.date)));
+      setHolidayForm({ data: "", nome: "" });
+      setHolidayMessage("Feriado personalizado criado com sucesso.");
+    } catch (error) {
+      setHolidayMessage(error.message);
+    } finally {
+      setHolidayLoading(false);
+    }
+  }
+
+  async function deleteHoliday(holiday) {
+    if (!window.confirm(`Excluir o feriado "${holiday.name}" de ${formatDate(holiday.date)}?`)) return;
+    setHolidayMessage("");
+    try {
+      await api.deleteHoliday(holiday.date);
+      setHolidays((current) => current.filter((item) => item.date !== holiday.date));
+      setHolidayMessage("Feriado personalizado excluído.");
+    } catch (error) {
+      setHolidayMessage(error.message);
     }
   }
 
@@ -99,6 +145,7 @@ export default function Dashboard({ onNavigate }) {
 
   useEffect(() => {
     loadAppointments();
+    loadHolidays();
   }, []);
 
   return (
@@ -184,6 +231,53 @@ export default function Dashboard({ onNavigate }) {
           <button className="secondary-button" type="button" onClick={() => setNotification(null)}>Fechar mensagem</button>
         </section>
       ) : null}
+
+      <section className="holiday-admin-panel" aria-labelledby="holiday-admin-title">
+        <div className="holiday-admin-header">
+          <div>
+            <span className="eyebrow">Calendário da clínica</span>
+            <h2 id="holiday-admin-title">Feriados personalizados</h2>
+            <p>Cadastre dias de recesso, eventos internos ou outras datas sem atendimento.</p>
+          </div>
+          <span className="holiday-count">{holidays.filter((item) => item.source === "admin").length} personalizados</span>
+        </div>
+        <form className="holiday-form" onSubmit={createHoliday}>
+          <label>
+            Data
+            <input type="date" required value={holidayForm.data} disabled={holidayLoading}
+              onChange={(event) => setHolidayForm((current) => ({ ...current, data: event.target.value }))} />
+          </label>
+          <label>
+            Nome do feriado
+            <input type="text" required minLength="2" maxLength="180" placeholder="Ex.: Recesso da clínica"
+              value={holidayForm.nome} disabled={holidayLoading}
+              onChange={(event) => setHolidayForm((current) => ({ ...current, nome: event.target.value }))} />
+          </label>
+          <button className="submit-button" type="submit" disabled={holidayLoading || !holidayForm.data || !holidayForm.nome.trim()}>
+            <Plus size={18} />
+            {holidayLoading ? "Salvando..." : "Adicionar feriado"}
+          </button>
+        </form>
+        {holidayMessage ? <div className={`feedback ${holidayMessage.includes("sucesso") || holidayMessage.includes("excluído") ? "success" : "error"}`} role="status">{holidayMessage}</div> : null}
+        {holidays.length ? (
+          <div className="holiday-list">
+            {holidays.map((holiday) => (
+              <div className="holiday-row" key={`${holiday.date}-${holiday.source}`}>
+                <div>
+                  <strong>{formatDate(holiday.date)}</strong>
+                  <span>{holiday.name}</span>
+                </div>
+                {holiday.source === "admin" ? (
+                  <button className="icon-action danger-action" type="button" aria-label={`Excluir ${holiday.name}`}
+                    title="Excluir feriado personalizado" onClick={() => deleteHoliday(holiday)}>
+                    <Trash2 size={17} />
+                  </button>
+                ) : <span className="holiday-source">Nacional</span>}
+              </div>
+            ))}
+          </div>
+        ) : <p className="holiday-empty">Nenhum feriado carregado para exibir.</p>}
+      </section>
 
       <section className="table-wrap" aria-busy={loading}>
         {loading ? (

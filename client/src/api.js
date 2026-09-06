@@ -19,7 +19,9 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || "Nao foi possivel concluir a operacao.");
+    const error = new Error(data.message || "Nao foi possivel concluir a operacao.");
+    error.status = response.status;
+    throw error;
   }
 
   return data;
@@ -46,6 +48,12 @@ export const api = {
       method: "POST"
     }),
   getAppointments: () => request("/api/appointments/admin"),
+  getHolidays: () => request("/api/holidays/admin"),
+  createHoliday: (payload) => request("/api/holidays/admin", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }),
+  deleteHoliday: (date) => request(`/api/holidays/admin/${date}`, { method: "DELETE" }),
   rescheduleAppointment: (id, payload) =>
     request(`/api/appointments/admin/${id}/reschedule`, {
       method: "PATCH",
