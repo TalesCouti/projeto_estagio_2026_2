@@ -1,3 +1,7 @@
+# Autoria 
+Projeto de Tales Coutinho Carlos
+Talescouti40@gmail.com
+
 # Clinica Aurora Saude
 
 Sistema web para agendamento de consultas medicas. O projeto tem uma pagina publica para pacientes, API em Express, banco PostgreSQL e painel administrativo com login.
